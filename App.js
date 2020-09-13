@@ -1,6 +1,7 @@
 import React from 'react';
 import {
   SafeAreaView,
+  Platform,
   StyleSheet,
   ScrollView,
   NativeModules,
@@ -21,9 +22,11 @@ import {
   ReloadInstructions,
 } from 'react-native/Libraries/NewAppScreen';
 
-import CheckoutPageView from './CheckoutPageView.js';
+//import CheckoutPageView from './CheckoutPageView.js';
 
 var StripeBridge = NativeModules.StripeBridge;
+var CheckoutPageView;
+
 
 //import StripeBridge from './StripeBridge';
 
@@ -35,7 +38,21 @@ class App extends React.Component {
     ccnumber: '4242424242424242',
     month: '12',
     cvc: '123',
+    isIos: Platform.select({
+      'ios': true,
+      'android': false,
+    })
+    
   };
+
+  constructor() {
+    super();
+    this._clickEvent = this._clickEvent.bind(this);
+    this.Pay = this.Pay.bind(this);
+    if (Platform.OS === 'android') {
+      CheckoutPageView = require('./CheckoutPageView.js');
+    }
+  }
 
   // event listener to update the values of the different inputs
   _onCCnumberChange = text => {
@@ -54,22 +71,11 @@ class App extends React.Component {
     this.setState({cvc: text});
   };
 
-  pay = () => {
+  Pay() {
     const {ccnumber, year, month, cvc} = this.state;
     this.setState({loadingCardButton: true});
     //https://veml8u1rjb.execute-api.us-west-1.amazonaws.com/beta/payment
     //http://localhost:3001/createStripePaymentIntent
-
-    /*StripeBridge.createPayment(
-      'Hello world',
-      (error) => {
-
-      },
-      ( res) => {
-        console.log(res);
-      }
-    );*/
-    console.log('here');
 
     
     fetch('https://veml8u1rjb.execute-api.us-west-1.amazonaws.com/beta/payment', {
@@ -81,10 +87,8 @@ class App extends React.Component {
     })
       .then(response => response.json())
       .then(responseJson => {
-        var temp = responseJson.setupIntentId;
+        const clientSecret = responseJson.setupIntentId;
         console.log(responseJson.setupIntentId);
-
-        console.log(responseJson);
         StripeBridge.createPayment(
           responseJson.setupIntentId,
           ccnumber,
@@ -93,7 +97,6 @@ class App extends React.Component {
           cvc,
           (error, res, payment_method) => {
             if (res == 'SUCCESS') {
-              console.log("here");
               this.setState({loadingCardButton: false});
               Alert.alert('Stripe Payment', 'Your Stripe payment succeeded', [
                 {text: 'OK', onPress: () => console.log('OK Pressed')},
@@ -109,106 +112,129 @@ class App extends React.Component {
       
   };
 
-  render() {
-    return (
-      <View style={{paddingTop: 100, backgroundColor: '#1e1f34', flex: 1}}>
-        <CheckoutPageView style={{height:200, width:200}}>
-        
-        </CheckoutPageView>
-        <View style={styles.flowRight}>
-          <TextInput
-            editable={true}
-            style={styles.searchInput}
-            autoCapitalize={'words'}
-            keyboardType={'default'}
-            placeholder="Name on card"
-            onChangeText={text => this._onCCnameChange(text)}
-            autoCorrect={false}
-            multiLine={false}
-            placeholderTextColor="#7a7d85"
-            selectionColor="white"
-            autoCompleteType="off"
-            textContentType="none"
-          />
-        </View>
-        <View style={styles.flowRight}>
-          <TextInput
-            editable={true}
-            maxLength={16}
-            style={styles.searchInput}
-            keyboardType={'number-pad'}
-            placeholder="Card Number"
-            onChangeText={text => this._onCCnumberChange(text)}
-            autoCorrect={false}
-            multiLine={false}
-            autoCapitalize={'none'}
-            placeholderTextColor="#7a7d85"
-            selectionColor="white"
-            autoCompleteType="off"
-            textContentType="none"
-          />
-        </View>
-        <View style={styles.flowRight}>
-          <TextInput
-            maxLength={2}
-            editable={true}
-            style={styles.searchInput}
-            keyboardType={'number-pad'}
-            placeholder="MM"
-            onChangeText={text => this._onCCmonthChange(text)}
-            autoCorrect={false}
-            multiLine={false}
-            placeholderTextColor="#7a7d85"
-            selectionColor="white"
-            autoCompleteType="off"
-            textContentType="none"
-          />
-          <TextInput
-            maxLength={2}
-            editable={true}
-            style={styles.searchInput}
-            keyboardType={'number-pad'}
-            placeholder="YY"
-            onChangeText={text => this._onCCyearChange(text)}
-            autoCorrect={false}
-            multiLine={false}
-            placeholderTextColor="#7a7d85"
-            selectionColor="white"
-            autoCompleteType="off"
-            textContentType="none"
-          />
-        </View>
-        <View style={styles.flowRight}>
-          <TextInput
-            maxLength={3}
-            editable={true}
-            style={styles.searchInput}
-            keyboardType={'number-pad'}
-            placeholder="CVC"
-            onChangeText={text => this._onCCcvvChange(text)}
-            autoCorrect={false}
-            multiLine={false}
-            placeholderTextColor="#7a7d85"
-            selectionColor="white"
-            autoCompleteType="off"
-            textContentType="none"
-          />
-        </View>
-
-        {this.state.loadingCardButton ? (
-          <View style={{paddingTop: 50}}>
-            <ActivityIndicator />
-          </View>
-        ) : (
-          <TouchableOpacity
-            style={styles.blueButton}
-            onPress={() => this.pay()}>
-            <Text>Pay</Text>
-          </TouchableOpacity>
-        )}
-      </View>
-    );
+  //PART 3: Added event receive, i.e. click from native button.
+  _clickEvent(event) {
+    console.warn(event.nativeEvent.customNativeEventMessage);
+    this.Pay();
   }
+
+
+
+  render() {
+    return this.state.isIos ? (
+      <View style={{paddingTop: 100, backgroundColor: '#1e1f34', flex: 1}}>
+      
+      <View style={styles.flowRight}>
+        <TextInput
+          editable={true}
+          style={styles.searchInput}
+          autoCapitalize={'words'}
+          keyboardType={'default'}
+          placeholder="Name on card"
+          onChangeText={text => this._onCCnameChange(text)}
+          autoCorrect={false}
+          multiLine={false}
+          placeholderTextColor="#7a7d85"
+          selectionColor="white"
+          autoCompleteType="off"
+          textContentType="none"
+        />
+      </View>
+      <View style={styles.flowRight}>
+        <TextInput
+          editable={true}
+          maxLength={16}
+          style={styles.searchInput}
+          keyboardType={'number-pad'}
+          placeholder="Card Number"
+          onChangeText={text => this._onCCnumberChange(text)}
+          autoCorrect={false}
+          multiLine={false}
+          autoCapitalize={'none'}
+          placeholderTextColor="#7a7d85"
+          selectionColor="white"
+          autoCompleteType="off"
+          textContentType="none"
+        />
+      </View>
+      <View style={styles.flowRight}>
+        <TextInput
+          maxLength={2}
+          editable={true}
+          style={styles.searchInput}
+          keyboardType={'number-pad'}
+          placeholder="MM"
+          onChangeText={text => this._onCCmonthChange(text)}
+          autoCorrect={false}
+          multiLine={false}
+          placeholderTextColor="#7a7d85"
+          selectionColor="white"
+          autoCompleteType="off"
+          textContentType="none"
+        />
+        <TextInput
+          maxLength={2}
+          editable={true}
+          style={styles.searchInput}
+          keyboardType={'number-pad'}
+          placeholder="YY"
+          onChangeText={text => this._onCCyearChange(text)}
+          autoCorrect={false}
+          multiLine={false}
+          placeholderTextColor="#7a7d85"
+          selectionColor="white"
+          autoCompleteType="off"
+          textContentType="none"
+        />
+      </View>
+      <View style={styles.flowRight}>
+        <TextInput
+          maxLength={3}
+          editable={true}
+          style={styles.searchInput}
+          keyboardType={'number-pad'}
+          placeholder="CVC"
+          onChangeText={text => this._onCCcvvChange(text)}
+          autoCorrect={false}
+          multiLine={false}
+          placeholderTextColor="#7a7d85"
+          selectionColor="white"
+          autoCompleteType="off"
+          textContentType="none"
+        />
+      </View>
+
+      {this.state.loadingCardButton ? (
+        <View style={{paddingTop: 50}}>
+          <ActivityIndicator />
+        </View>
+      ) : (
+        <TouchableOpacity
+          style={styles.blueButton}
+          onPress={() => this.Pay()}>
+          <Text>Pay</Text>
+        </TouchableOpacity>
+      )}
+    </View>
+
+    ) : (
+      //<Text>here2</Text>
+    
+    
+      /*<View>
+        {this.returnView(temp)}
+      </View>*/
+      <CheckoutPageView style={{flex:1}} onClick={this._clickEvent}></CheckoutPageView>
+      
+     /*<View>
+      {temp ? (
+        <Text>yes</Text>
+      ) : (
+        //<Text>whats up</Text>
+        <CheckoutPageView style={{flex:1}} onClick={this._clickEvent}></CheckoutPageView>
+      )}
+      </View>*/
+  )}
 }
 
 const styles = StyleSheet.create({

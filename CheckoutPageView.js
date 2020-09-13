@@ -1,3 +1,5 @@
-import {requireNativeComponent, ViewPropTypes} from 'react-native';
+import {requireNativeComponent, ViewPropTypes, Platform} from 'react-native';
 //
-module.exports = requireNativeComponent('CheckoutViewManager', null);
+//if (Platform.OS == 'android') {
+    module.exports = requireNativeComponent('CheckoutViewManager', null);
+//}
